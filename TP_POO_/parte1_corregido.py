@@ -15,11 +15,19 @@ Correcciones aplicadas:
   9. Poligono como ABC: lados_esperados() abstracto, falla temprana al instanciar
 """
 
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import ClassVar, Iterable
+from typing import ClassVar, Iterable, Protocol
 
+class Exportable(Protocol):
+    """Contrato estructural: cualquier objeto con exportar() -> str lo cumple,
+    sin necesidad de heredar de esta clase (a diferencia de una ABC)."""
+
+    def exportar(self) -> str: ... #los tres puntos en un Protocol, 
+                                 #el cuerpo del método nunca se implementa, 
+                                 # solo se declara la firma que hay que cumplir."
 
 class Figura:
     def __init__(self, nombre: str, color: str) -> None:
@@ -80,6 +88,9 @@ class Poligono(Figura, ABC):
 
     def perimetro(self) -> float:
         return sum(lado.longitud for lado in self._lados)
+
+    def exportar(self) -> str:
+        return f"{type(self).__name__}[{self.nombre}, {self.lados_esperados()} lados, perimetro={self.perimetro()}]"
 
     def area(self) -> float:
         return 0.0
@@ -161,6 +172,11 @@ def crear_regular(
         cantidad = clase.lados_esperados()
         lados = [Lado(medida) for _ in range(cantidad)]
         return clase(nombre, color, lados)
+
+def exportar_todo(items: list[Exportable]) -> list[str]:
+    """Recibe polígonos y PlanoCAD en la misma lista, sin que les importe
+    el tipo del otro: alcanza con que cada uno tenga exportar() -> str."""
+    return [item.exportar() for item in items]
 
 
 if __name__ == "__main__":
