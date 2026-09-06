@@ -73,8 +73,9 @@ class Poligono(Figura, ABC):
     def todos(cls) -> tuple[Poligono, ...]:
         return tuple(cls._catalogo)
 
+    @classmethod
     @abstractmethod
-    def lados_esperados(self) -> int:
+    def lados_esperados(cls) -> int:
         """Cada subclase concreta define cuántos lados le corresponden."""
 
     def perimetro(self) -> float:
@@ -104,8 +105,9 @@ class Triangulo(Poligono):
     ) -> None:
         super().__init__(nombre, color, lados)
 
-    def lados_esperados(self) -> int:
-        return 3
+    @classmethod
+    def lados_esperados(cls) -> int:
+        return 3   # (o 4, 5, 6 según corresponda)
 
 
 class Cuadrado(Poligono):
@@ -117,8 +119,9 @@ class Cuadrado(Poligono):
     ) -> None:
         super().__init__(nombre, color, lados)
 
-    def lados_esperados(self) -> int:
-        return 4
+    @classmethod
+    def lados_esperados(cls) -> int:
+        return 4   # (o 4, 5, 6 según corresponda)
 
 class Pentagono(Poligono):
     def __init__(
@@ -129,7 +132,8 @@ class Pentagono(Poligono):
     ) -> None:
         super().__init__(nombre, color, lados)
 
-    def lados_esperados(self) -> int:
+    @classmethod
+    def lados_esperados(cls) -> int:
         return 5
 
 
@@ -142,24 +146,21 @@ class Hexagono(Poligono):
     ) -> None:
         super().__init__(nombre, color, lados)
 
-    def lados_esperados(self) -> int:
+    @classmethod
+    def lados_esperados(cls) -> int:
         return 6
 
-class PoligonoRegular(Poligono):
-    """Poligono de N lados de igual longitud."""
+def crear_regular(
+        clase: type[Poligono], medida: float, nombre: str = "regular", color: str = "negro"
+    ) -> Poligono:
+        """Construye un polígono del tipo dado con todos los lados iguales a `medida`.
 
-    def __init__(
-        self, nombre: str, color: str, medida: float, cantidad: int
-    ) -> None:
-        super().__init__(
-            nombre,
-            color,
-            (Lado(medida) for _ in range(cantidad)),
-        )
-        self._cantidad = cantidad
-
-    def lados_esperados(self) -> int:
-        return self._cantidad
+        Reemplaza a la antigua clase PoligonoRegular: la cantidad de lados la define
+        la propia clase (Triangulo→3, Cuadrado→4, etc.), no un parámetro aparte.
+        """
+        cantidad = clase.lados_esperados()
+        lados = [Lado(medida) for _ in range(cantidad)]
+        return clase(nombre, color, lados)
 
 
 if __name__ == "__main__":
@@ -172,5 +173,6 @@ if __name__ == "__main__":
         triangulo.agregar_observacion("revisar el vertice A")
         print(f"Figuras en el catalogo: {len(Poligono.todos())}")
         print(f"Nombre mediante property: {triangulo.nombre}")
-        regular = PoligonoRegular("Pentagono", "verde", 4, 5)
+        regular = crear_regular(Pentagono, medida=4, nombre="Pentagono", color="verde")
         print(f"Perimetro del pentagono: {regular.perimetro()}")
+       
