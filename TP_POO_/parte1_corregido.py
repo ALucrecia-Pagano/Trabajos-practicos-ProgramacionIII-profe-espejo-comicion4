@@ -12,10 +12,12 @@ Correcciones aplicadas:
   6. Bucle acumulador manual en perimetro → sum() + generator
   7. area() -> int devolviendo str → -> float devolviendo 0.0
   8. Triangulo/Cuadrado con *args + isinstance → firmas explicitas con defaults
+  9. Poligono como ABC: lados_esperados() abstracto, falla temprana al instanciar
 """
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from typing import ClassVar, Iterable
 
 
@@ -52,7 +54,7 @@ class Lado:
         self._longitud = valor
 
 
-class Poligono(Figura):
+class Poligono(Figura, ABC):
     _catalogo: ClassVar[list[Poligono]] = []
 
     def __init__(
@@ -71,8 +73,9 @@ class Poligono(Figura):
     def todos(cls) -> tuple[Poligono, ...]:
         return tuple(cls._catalogo)
 
+    @abstractmethod
     def lados_esperados(self) -> int:
-        return 0
+        """Cada subclase concreta define cuántos lados le corresponden."""
 
     def perimetro(self) -> float:
         return sum(lado.longitud for lado in self._lados)
@@ -117,6 +120,30 @@ class Cuadrado(Poligono):
     def lados_esperados(self) -> int:
         return 4
 
+class Pentagono(Poligono):
+    def __init__(
+        self,
+        nombre: str = "pentagono",
+        color: str = "negro",
+        lados: Iterable[Lado] | None = None,
+    ) -> None:
+        super().__init__(nombre, color, lados)
+
+    def lados_esperados(self) -> int:
+        return 5
+
+
+class Hexagono(Poligono):
+    def __init__(
+        self,
+        nombre: str = "hexagono",
+        color: str = "negro",
+        lados: Iterable[Lado] | None = None,
+    ) -> None:
+        super().__init__(nombre, color, lados)
+
+    def lados_esperados(self) -> int:
+        return 6
 
 class PoligonoRegular(Poligono):
     """Poligono de N lados de igual longitud."""
