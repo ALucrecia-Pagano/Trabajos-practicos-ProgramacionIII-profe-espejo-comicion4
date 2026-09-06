@@ -145,5 +145,30 @@ clase cuántos lados necesita *antes* de construir el objeto, sin el problema
 de "necesito instanciar para saber cuántos lados, pero no puedo instanciar sin
 lados".
 
+## Parte 4 — ABC vs. Protocol
+
+### Punto 3 — ¿Por qué una ABC no hubiera servido para PlanoCAD?
+
+Con una ABC, para que `PlanoCAD` "cumpla" el contrato `Exportable` tendría que
+heredar explícitamente de él — eso significa modificar `libreria_externa.py`,
+algo que la consigna prohíbe. No se trata de adaptar el código a la librería:
+directamente no hay forma de hacer que una ABC funcione sin tocar la clase
+ajena, porque una ABC valida por herencia, no por forma.
+
+Con `Protocol`, en cambio, no hace falta que `PlanoCAD` sepa que `Exportable`
+existe. Cumple el contrato solo por tener un método `exportar() -> str` con la
+firma correcta — "por casualidad", como dice el propio docstring del archivo.
+
+### ¿Lo decide el lenguaje o el dominio?
+
+Lo decide el dominio, pero no porque "Python no sea tipado y corra igual" —
+esa razón valdría para cualquier decisión del TP. La razón puntual acá es que
+"ser un polígono" es identidad (una jerarquía "es-un": un `Pentagono` siempre
+es un `Poligono`), mientras que "ser exportable" es un rol, una capacidad que
+comparten objetos sin parentesco entre sí (`Poligono` y `PlanoCAD` no tienen
+nada que ver, salvo que ambos saben exportar). El dominio es el que dice cuál
+de las dos cosas es cada relación; el lenguaje solo te da la herramienta
+correcta para cada una: `ABC` para identidad, `Protocol` para rol.
+
 
 
