@@ -1,148 +1,226 @@
-"""parte1_diagnostico.py — El dominio Figura / Polígono / Lado, funcionando.
+"""parte1_corregido.py — Version corregida de parte1_diagnostico.py.
 
-⚠️ Este módulo corre de punta a punta sin lanzar un solo traceback. No tiene bugs
-de sintaxis: tiene ACENTO DE JAVA.
+La implementacion conserva el dominio Figura/Poligono/Lado, pero elimina
+los ocho java-ismos de diseno y el ruido sintactico del archivo diagnostico.
 
-Contiene exactamente 8 java-ismos de DISEÑO. Siete están en el checklist de la
-Actividad 4; el octavo no está en ese checklist y hay que encontrarlo con criterio,
-no con la lista.
-
-Además hay ruido sintáctico (punto y coma al final de línea, comparaciones contra
-True, concatenación con + donde iría un f-string). Ese ruido también se limpia, pero
-NO cuenta dentro de los 8.
-
-Tu trabajo (Parte 1): encontrarlos, listarlos en informe.md y corregirlos, cada uno
-justificado con la inversión conceptual que lo explica.
+Correcciones aplicadas:
+  1. getNombre / getColor reemplazados por @property
+  2. catalogo = [] (mutable compartido) → ClassVar[list] con append defensivo
+  3. lados=[], observaciones=[] (mutables por defecto) → None + list() interno
+  4. super().__init__() faltante en Poligono → delegacion correcta
+  5. self._lados = lados (alias) → list(lados) copia + getLados → @property tuple
+  6. Bucle acumulador manual en perimetro → sum() + generator
+  7. area() -> int devolviendo str → -> float devolviendo 0.0
+  8. Triangulo/Cuadrado con *args + isinstance → firmas explicitas con defaults
+  9. Poligono como ABC: lados_esperados() abstracto, falla temprana al instanciar
 """
 
-import math
 
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from typing import ClassVar, Iterable, Protocol
+
+class Exportable(Protocol):
+    """Contrato estructural: cualquier objeto con exportar() -> str lo cumple,
+    sin necesidad de heredar de esta clase (a diferencia de una ABC)."""
+
+    def exportar(self) -> str: ... #los tres puntos en un Protocol, 
+                                 #el cuerpo del método nunca se implementa, 
+                                 # solo se declara la firma que hay que cumplir."
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Etiqueta:
+    """Identifica a un Lado con un texto. Frozen = inmutable una vez creada."""
+
+    texto: str
 
 class Figura:
-    def __init__(self, nombre, color):
+    def __init__(self, nombre: str, color: str) -> None:
         self._nombre = nombre
         self._color = color
-        self._construida = True   # marca de que Figura.__init__ realmente corrió
+        self._construida = True
 
-    # >>> getters preventivos SIN lógica (ceremonia de Java) <<<
-    def getNombre(self):
+    @property
+    def nombre(self) -> str:
         return self._nombre
 
-    def getColor(self):
+    @property
+    def color(self) -> str:
         return self._color
 
-    def area(self):
+    def area(self) -> float:
         return 0.0
 
 
 class Lado:
-    def __init__(self, longitud):
-        self._longitud = longitud
+    def __init__(self, longitud: float, etiqueta: Etiqueta | None = None) -> None:
+        self.longitud = longitud
+        self._etiqueta = etiqueta
 
-    # >>> getter/setter con lógica de validación (estilo Java bean) <<<
-    def getLongitud(self):
+    @property
+    def longitud(self) -> float:
         return self._longitud
 
-    def setLongitud(self, valor):
+    @longitud.setter
+    def longitud(self, valor: float) -> None:
         if valor <= 0:
             raise ValueError("La longitud debe ser positiva")
         self._longitud = valor
 
+    @property
+    def etiqueta(self) -> Etiqueta | None:
+        return self._etiqueta
 
-class Poligono(Figura):
+    @etiqueta.setter
+    def etiqueta(self, valor: Etiqueta) -> None:
+        self._etiqueta = valor
 
-    # >>> atributo de clase mutable: un "static" accidental compartido <<<
-    catalogo = []
 
-    # >>> argumento por defecto mutable (lados y observaciones) <<<
-    def __init__(self, nombre, color, lados=[], observaciones=[]):
-        # >>> super().__init__() olvidado: se re-asignan los atributos a mano <<<
-        self._nombre = nombre
-        self._color = color
-        # >>> se guarda el ALIAS de la lista recibida, sin copiarla <<<
-        self._lados = lados
-        self._observaciones = observaciones
-        Poligono.catalogo.append(self)
+class Poligono(Figura, ABC):
+    _catalogo: ClassVar[list[Poligono]] = []
 
-    def lados_esperados(self):
-        return 0
+    def __init__(
+        self,
+        nombre: str,
+        color: str,
+        lados: Iterable[Lado] | None = None,
+        observaciones: Iterable[str] | None = None,
+    ) -> None:
+        super().__init__(nombre, color)
+        self._lados = list(lados) if lados is not None else []
+        self._observaciones = list(observaciones) if observaciones is not None else []
+        Poligono._catalogo.append(self)
 
-    # >>> bucle acumulador manual en vez de comprehension <<<
-    def perimetro(self):
-        total = 0
-        for l in self._lados:
-            total = total + l.getLongitud()
-        return total
+    @classmethod
+    def todos(cls) -> tuple[Poligono, ...]:
+        return tuple(cls._catalogo)
 
-    # >>> el type hint miente (-> int y devuelve str) y el "@Override" no existe <<<
-    def area(self) -> int:
-        return "area sin calcular"
+    @classmethod
+    @abstractmethod
+    def lados_esperados(cls) -> int:
+        """Cada subclase concreta define cuántos lados le corresponden."""
 
-    def agregar_observacion(self, texto):
+    def perimetro(self) -> float:
+        return sum(lado.longitud for lado in self._lados)
+
+    def exportar(self) -> str:
+        return f"{type(self).__name__}[{self.nombre}, {self.lados_esperados()} lados, perimetro={self.perimetro()}]"
+
+    def area(self) -> float:
+        return 0.0
+
+    def agregar_observacion(self, texto: str) -> None:
         self._observaciones.append(texto)
 
-    def getLados(self):
-        # devuelve la lista interna tal cual (el llamador puede mutarla desde afuera)
-        return self._lados
+    @property
+    def lados(self) -> tuple[Lado, ...]:
+        return tuple(self._lados)
+
+    @property
+    def observaciones(self) -> tuple[str, ...]:
+        return tuple(self._observaciones)
 
 
-# >>> sobrecarga de constructor estilo Java: un __init__ con ramas isinstance <<<
 class Triangulo(Poligono):
-    def __init__(self, *args):
-        if len(args) == 3:
-            super().__init__(args[0], args[1], args[2])
-        elif len(args) == 1 and isinstance(args[0], list):
-            super().__init__("triángulo", "negro", args[0])
-        else:
-            super().__init__("triángulo", "negro", [])
+    def __init__(
+        self,
+        nombre: str = "triangulo",
+        color: str = "negro",
+        lados: Iterable[Lado] | None = None,
+    ) -> None:
+        super().__init__(nombre, color, lados)
 
-    def lados_esperados(self):
-        return 3
+    @classmethod
+    def lados_esperados(cls) -> int:
+        return 3   # (o 4, 5, 6 según corresponda)
 
 
 class Cuadrado(Poligono):
-    def __init__(self, *args):
-        if len(args) == 3:
-            super().__init__(args[0], args[1], args[2])
-        elif len(args) == 1 and isinstance(args[0], list):
-            super().__init__("cuadrado", "negro", args[0])
-        else:
-            super().__init__("cuadrado", "negro", [])
+    def __init__(
+        self,
+        nombre: str = "cuadrado",
+        color: str = "negro",
+        lados: Iterable[Lado] | None = None,
+    ) -> None:
+        super().__init__(nombre, color, lados)
 
-    def lados_esperados(self):
-        return 4
+    @classmethod
+    def lados_esperados(cls) -> int:
+        return 4   # (o 4, 5, 6 según corresponda)
+
+class Pentagono(Poligono):
+    def __init__(
+        self,
+        nombre: str = "pentagono",
+        color: str = "negro",
+        lados: Iterable[Lado] | None = None,
+    ) -> None:
+        super().__init__(nombre, color, lados)
+
+    @classmethod
+    def lados_esperados(cls) -> int:
+        return 5
 
 
-class PoligonoRegular(Poligono):
-    """Polígono de N lados de igual longitud.
+class Hexagono(Poligono):
+    def __init__(
+        self,
+        nombre: str = "hexagono",
+        color: str = "negro",
+        lados: Iterable[Lado] | None = None,
+    ) -> None:
+        super().__init__(nombre, color, lados)
 
-    ⚠️ PARTE 3 — esta clase NO es uno de los 8 java-ismos de la Parte 1.
+    @classmethod
+    def lados_esperados(cls) -> int:
+        return 6
 
-    Se modeló heredando de Poligono para poder guardarla en la misma lista que
-    los demás polígonos y recorrerla con un único tipo común. En Java esa
-    herencia hacía falta; en Python no. Si su lugar en la jerarquía lo justifica
-    el dominio («un polígono regular ES-UN polígono») o solamente la ceremonia
-    del compilador es, exactamente, la decisión que se te pide tomar, justificar
-    e IMPLEMENTAR en la Parte 3.
-    """
+def crear_regular(
+        clase: type[Poligono], medida: float, nombre: str = "regular", color: str = "negro"
+    ) -> Poligono:
+        """Construye un polígono del tipo dado con todos los lados iguales a `medida`.
 
-    def __init__(self, nombre, color, medida, cantidad):
-        super().__init__(nombre, color, [Lado(medida) for _ in range(cantidad)])
-        self._cantidad = cantidad
+        Reemplaza a la antigua clase PoligonoRegular: la cantidad de lados la define
+        la propia clase (Triangulo→3, Cuadrado→4, etc.), no un parámetro aparte.
+        """
+        cantidad = clase.lados_esperados()
+        lados = [Lado(medida) for _ in range(cantidad)]
+        return clase(nombre, color, lados)
 
-    def lados_esperados(self):
-        return self._cantidad
+def exportar_todo(items: list[Exportable]) -> list[str]:
+    """Recibe polígonos y PlanoCAD en la misma lista, sin que les importe
+    el tipo del otro: alcanza con que cada uno tenga exportar() -> str."""
+    return [item.exportar() for item in items]
 
+class Taller:
+    """Restaura polígonos ya construidos. No los fabrica (agregación, no composición)."""
+
+    def __init__(self) -> None:
+        self._poligonos: list[Poligono] = []
+
+    def recibir(self, poligono: Poligono) -> None:
+        self._poligonos.append(poligono)
+
+    def restaurar(self, poligono: Poligono) -> None:
+        self._poligonos.remove(poligono)
+
+    def inventario(self) -> tuple[Poligono, ...]:
+        return tuple(self._poligonos)
 
 if __name__ == "__main__":
     activo = True
-    if activo == True:                                      # ruido: == True
-        t = Triangulo("Triángulo", "rojo", [Lado(3), Lado(4), Lado(5)]);   # ruido: ;
-        c = Cuadrado("Cuadrado", "azul", [Lado(2), Lado(2), Lado(2), Lado(2)])
-        print("Perímetro del triángulo: " + str(t.perimetro()))            # ruido: +
-        print("Perímetro del cuadrado: " + str(c.perimetro()))
-        t.agregar_observacion("revisar el vértice A")
-        print("Figuras en el catálogo: " + str(len(Poligono.catalogo)))
-        print("Nombre (via getter): " + t.getNombre())
-        r = PoligonoRegular("Pentágono", "verde", 4, 5)
-        print("Perímetro del pentágono: " + str(r.perimetro()))
+    if activo:
+        triangulo = Triangulo("Triangulo", "rojo", [Lado(3), Lado(4), Lado(5)])
+        cuadrado = Cuadrado("Cuadrado", "azul", [Lado(2), Lado(2), Lado(2), Lado(2)])
+        print(f"Perimetro del triangulo: {triangulo.perimetro()}")
+        print(f"Perimetro del cuadrado: {cuadrado.perimetro()}")
+        triangulo.agregar_observacion("revisar el vertice A")
+        print(f"Figuras en el catalogo: {len(Poligono.todos())}")
+        print(f"Nombre mediante property: {triangulo.nombre}")
+        regular = crear_regular(Pentagono, medida=4, nombre="Pentagono", color="verde")
+        print(f"Perimetro del pentagono: {regular.perimetro()}")
+       
