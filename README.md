@@ -10,6 +10,6 @@ Repositorio destinado a la entrega, control de versiones y seguimiento de los tr
 - **Comisión:** 4
 - **Grupo de Trabajo (Fantasía):** Editorial C0D3X
 - **Integrantes:**
-  - Liendo, Mateo Lautaro
+  - Liendo Mateo, Pagano Amanda, Avila Lucas.
 
 ---
