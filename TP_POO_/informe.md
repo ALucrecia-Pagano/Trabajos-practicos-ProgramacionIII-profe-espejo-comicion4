@@ -170,5 +170,40 @@ nada que ver, salvo que ambos saben exportar). El dominio es el que dice cuál
 de las dos cosas es cada relación; el lenguaje solo te da la herramienta
 correcta para cada una: `ABC` para identidad, `Protocol` para rol.
 
+## Tabla de equivalencias — de Java a mi código
 
+| Elemento en Java | Cómo quedó en mi código Python | ¿Traducción directa o rediseño? | Por qué |
+|---|---|---|---|
+| `getNombre()` / `getColor()` | `@property nombre` / `@property color` | Rediseño | En Python el acceso directo es idiomático; @property se usa solo cuando hay lógica de validación o solo-lectura, no como ceremonia |
+| Jerarquía `PoligonoRegular extends Poligono` | Función `crear_regular(clase, medida)` | Rediseño | La herencia servía solo para compartir tipo en una lista (necesidad del compilador de Java); en Python no hace falta, y "ser regular" no es un tipo de figura distinto |
+| `interface Exportable` + `implements` en cada clase | `class Exportable(Protocol)` | Rediseño | `PlanoCAD` no puede modificarse para heredar; Protocol valida por estructura (duck typing), no por herencia declarada |
+| Clase abstracta con método sin cuerpo | `class Poligono(Figura, ABC)` + `@abstractmethod` | Traducción directa | El concepto de "contrato por herencia" sí existe igual en Python vía `abc.ABC` |
+| `private List<Lado> lados;` con getter que devuelve la lista | `@property lados(self) -> tuple` devolviendo `tuple(self._lados)` | Rediseño | Python no tiene `private` real; la protección viene de la convención (`_`) más la copia defensiva al leer, no del modificador de acceso |
+| Constructor con múltiples firmas (`overloading`) | Un solo `__init__` con parámetros por defecto | Rediseño | Python no soporta sobrecarga de métodos; se resuelve con valores por defecto en una única firma |
 
+## Cierre
+
+Lo que cambió no fue el dominio en sí (Figura, Poligono, Lado siguen siendo
+las mismas ideas, con las mismas relaciones entre ellas), sino **el criterio
+para decidir cuándo usar cada herramienta**. En Java, la herencia se usaba
+para todo: para modelar "es-un" (Triangulo es-un Poligono) pero también para
+resolver problemas del compilador (PoligonoRegular heredando solo para
+compartir tipo en una lista, o una interfaz vacía para poder hacer
+`implements`). En Python esas dos cosas se separan: la herencia real
+("es-un") se resuelve con `ABC`, y el "necesito que esto y aquello compartan
+un comportamiento sin importar su tipo" se resuelve con `Protocol` (duck
+typing). Ya no hay una sola herramienta para todo — hay una para cada
+pregunta, y elegir bien depende de entender qué te está pidiendo el dominio
+en cada caso.
+
+Lo que sí se mantuvo idéntico es la lógica de construcción de objetos: los
+constructores siguen inicializando el estado del objeto en el momento de
+crearlo, delegando en la clase padre lo que le corresponde a ella
+(`super().__init__()`) antes de agregar lo propio — eso no cambia entre
+lenguajes, cambia solamente la sintaxis con la que se escribe (parámetros
+con valores por defecto en vez de sobrecarga de constructores, por ejemplo).
+Tampoco cambian las relaciones estructurales en sí (composición, agregación,
+asociación): lo que cambia es que en Python hay que ser más cuidadoso
+mostrando esas diferencias en el código, porque la sintaxis para guardar una
+referencia es la misma en los tres casos — la diferencia está en el diseño,
+no en una palabra clave que Java sí tiene y Python no.
