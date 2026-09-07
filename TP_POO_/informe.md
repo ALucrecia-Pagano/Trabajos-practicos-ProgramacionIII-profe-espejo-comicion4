@@ -115,6 +115,60 @@ Eso es asociación: vínculo débil entre objetos independientes.
 | Agregación (`Taller`→`Poligono`) | Código externo, antes de llamar a `recibir` | Los `Poligono` siguen existiendo |
 | Asociación (`Lado`→`Etiqueta`) | Código externo, vía `etiquetar_lado` | La `Etiqueta` existe independientemente |
 
+## Parte 3 — Herencia justificada por dominio
+
+### Decisión sobre `PoligonoRegular`
+
+En el código de partida, `PoligonoRegular` hereda de `Poligono` solo para poder
+convivir con `Triangulo` y `Cuadrado` bajo el mismo tipo. Pero esa necesidad
+es de Java, no de Python: acá no hace falta que dos objetos compartan un
+ancestro común para estar en la misma lista (`[1, "hola", Lado(3)]` es una
+lista válida, con tipos que no tienen nada que ver entre sí).
+
+Sacando ese argumento de encima, queda la pregunta real: ¿un "polígono
+regular" es un tipo de figura distinto, con comportamiento propio? No. Es la
+misma figura de siempre (un pentágono, un hexágono) con una restricción extra:
+todos los lados miden igual. La prueba está en cómo estaba armada la clase:
+la cantidad de lados no la definía el tipo, se la pasabas vos como parámetro
+cada vez (`PoligonoRegular(nombre, color, medida, cantidad)`). Eso ya es una
+señal de que no estaba modelando un "es-un" del dominio, sino resolviendo un
+problema de organización de código.
+
+**Decisión:** se elimina `PoligonoRegular` de la jerarquía de herencia. En su
+lugar, se agrega una función `crear_regular(clase, medida)` que construye un
+`Triangulo`, `Cuadrado`, `Pentagono` o `Hexagono` ya existente, con todos los
+lados iguales a `medida`. Para esto, `lados_esperados()` pasó de ser un método
+de instancia a un `@classmethod`: la cantidad de lados es un dato de la clase
+(un triángulo siempre tiene 3, exista o no un triángulo construido), no de un
+objeto particular ya armado. Eso permite que `crear_regular` le pregunte a la
+clase cuántos lados necesita *antes* de construir el objeto, sin el problema
+de "necesito instanciar para saber cuántos lados, pero no puedo instanciar sin
+lados".
+
+## Parte 4 — ABC vs. Protocol
+
+### Punto 3 — ¿Por qué una ABC no hubiera servido para PlanoCAD?
+
+Con una ABC, para que `PlanoCAD` "cumpla" el contrato `Exportable` tendría que
+heredar explícitamente de él — eso significa modificar `libreria_externa.py`,
+algo que la consigna prohíbe. No se trata de adaptar el código a la librería:
+directamente no hay forma de hacer que una ABC funcione sin tocar la clase
+ajena, porque una ABC valida por herencia, no por forma.
+
+Con `Protocol`, en cambio, no hace falta que `PlanoCAD` sepa que `Exportable`
+existe. Cumple el contrato solo por tener un método `exportar() -> str` con la
+firma correcta — "por casualidad", como dice el propio docstring del archivo.
+
+### ¿Lo decide el lenguaje o el dominio?
+
+Lo decide el dominio, pero no porque "Python no sea tipado y corra igual" —
+esa razón valdría para cualquier decisión del TP. La razón puntual acá es que
+"ser un polígono" es identidad (una jerarquía "es-un": un `Pentagono` siempre
+es un `Poligono`), mientras que "ser exportable" es un rol, una capacidad que
+comparten objetos sin parentesco entre sí (`Poligono` y `PlanoCAD` no tienen
+nada que ver, salvo que ambos saben exportar). El dominio es el que dice cuál
+de las dos cosas es cada relación; el lenguaje solo te da la herramienta
+correcta para cada una: `ABC` para identidad, `Protocol` para rol.
 
 
 

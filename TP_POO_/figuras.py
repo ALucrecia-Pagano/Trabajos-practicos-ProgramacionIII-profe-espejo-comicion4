@@ -12,12 +12,31 @@ Correcciones aplicadas:
   6. Bucle acumulador manual en perimetro → sum() + generator
   7. area() -> int devolviendo str → -> float devolviendo 0.0
   8. Triangulo/Cuadrado con *args + isinstance → firmas explicitas con defaults
+  9. Poligono como ABC: lados_esperados() abstracto, falla temprana al instanciar
 """
+
 
 from __future__ import annotations
 
-from typing import ClassVar, Iterable
+from abc import ABC, abstractmethod
+from typing import ClassVar, Iterable, Protocol
 
+class Exportable(Protocol):
+    """Contrato estructural: cualquier objeto con exportar() -> str lo cumple,
+    sin necesidad de heredar de esta clase (a diferencia de una ABC)."""
+
+    def exportar(self) -> str: ... #los tres puntos en un Protocol, 
+                                 #el cuerpo del método nunca se implementa, 
+                                 # solo se declara la firma que hay que cumplir."
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class Etiqueta:
+    """Identifica a un Lado con un texto. Frozen = inmutable una vez creada."""
+
+    texto: str
 
 class Figura:
     def __init__(self, nombre: str, color: str) -> None:
@@ -38,8 +57,9 @@ class Figura:
 
 
 class Lado:
-    def __init__(self, longitud: float) -> None:
+    def __init__(self, longitud: float, etiqueta: Etiqueta | None = None) -> None:
         self.longitud = longitud
+        self._etiqueta = etiqueta
 
     @property
     def longitud(self) -> float:
@@ -51,8 +71,16 @@ class Lado:
             raise ValueError("La longitud debe ser positiva")
         self._longitud = valor
 
+    @property
+    def etiqueta(self) -> Etiqueta | None:
+        return self._etiqueta
 
-class Poligono(Figura):
+    @etiqueta.setter
+    def etiqueta(self, valor: Etiqueta) -> None:
+        self._etiqueta = valor
+
+
+class Poligono(Figura, ABC):
     _catalogo: ClassVar[list[Poligono]] = []
 
     def __init__(
@@ -71,11 +99,16 @@ class Poligono(Figura):
     def todos(cls) -> tuple[Poligono, ...]:
         return tuple(cls._catalogo)
 
-    def lados_esperados(self) -> int:
-        return 0
+    @classmethod
+    @abstractmethod
+    def lados_esperados(cls) -> int:
+        """Cada subclase concreta define cuántos lados le corresponden."""
 
     def perimetro(self) -> float:
         return sum(lado.longitud for lado in self._lados)
+
+    def exportar(self) -> str:
+        return f"{type(self).__name__}[{self.nombre}, {self.lados_esperados()} lados, perimetro={self.perimetro()}]"
 
     def area(self) -> float:
         return 0.0
@@ -101,8 +134,9 @@ class Triangulo(Poligono):
     ) -> None:
         super().__init__(nombre, color, lados)
 
-    def lados_esperados(self) -> int:
-        return 3
+    @classmethod
+    def lados_esperados(cls) -> int:
+        return 3   # (o 4, 5, 6 según corresponda)
 
 
 class Cuadrado(Poligono):
@@ -114,26 +148,68 @@ class Cuadrado(Poligono):
     ) -> None:
         super().__init__(nombre, color, lados)
 
-    def lados_esperados(self) -> int:
-        return 4
+    @classmethod
+    def lados_esperados(cls) -> int:
+        return 4   # (o 4, 5, 6 según corresponda)
 
-
-class PoligonoRegular(Poligono):
-    """Poligono de N lados de igual longitud."""
-
+class Pentagono(Poligono):
     def __init__(
-        self, nombre: str, color: str, medida: float, cantidad: int
+        self,
+        nombre: str = "pentagono",
+        color: str = "negro",
+        lados: Iterable[Lado] | None = None,
     ) -> None:
-        super().__init__(
-            nombre,
-            color,
-            (Lado(medida) for _ in range(cantidad)),
-        )
-        self._cantidad = cantidad
+        super().__init__(nombre, color, lados)
 
-    def lados_esperados(self) -> int:
-        return self._cantidad
+    @classmethod
+    def lados_esperados(cls) -> int:
+        return 5
 
+
+class Hexagono(Poligono):
+    def __init__(
+        self,
+        nombre: str = "hexagono",
+        color: str = "negro",
+        lados: Iterable[Lado] | None = None,
+    ) -> None:
+        super().__init__(nombre, color, lados)
+
+    @classmethod
+    def lados_esperados(cls) -> int:
+        return 6
+
+def crear_regular(
+        clase: type[Poligono], medida: float, nombre: str = "regular", color: str = "negro"
+    ) -> Poligono:
+        """Construye un polígono del tipo dado con todos los lados iguales a `medida`.
+
+        Reemplaza a la antigua clase PoligonoRegular: la cantidad de lados la define
+        la propia clase (Triangulo→3, Cuadrado→4, etc.), no un parámetro aparte.
+        """
+        cantidad = clase.lados_esperados()
+        lados = [Lado(medida) for _ in range(cantidad)]
+        return clase(nombre, color, lados)
+
+def exportar_todo(items: list[Exportable]) -> list[str]:
+    """Recibe polígonos y PlanoCAD en la misma lista, sin que les importe
+    el tipo del otro: alcanza con que cada uno tenga exportar() -> str."""
+    return [item.exportar() for item in items]
+
+class Taller:
+    """Restaura polígonos ya construidos. No los fabrica (agregación, no composición)."""
+
+    def __init__(self) -> None:
+        self._poligonos: list[Poligono] = []
+
+    def recibir(self, poligono: Poligono) -> None:
+        self._poligonos.append(poligono)
+
+    def restaurar(self, poligono: Poligono) -> None:
+        self._poligonos.remove(poligono)
+
+    def inventario(self) -> tuple[Poligono, ...]:
+        return tuple(self._poligonos)
 
 if __name__ == "__main__":
     activo = True
@@ -145,5 +221,6 @@ if __name__ == "__main__":
         triangulo.agregar_observacion("revisar el vertice A")
         print(f"Figuras en el catalogo: {len(Poligono.todos())}")
         print(f"Nombre mediante property: {triangulo.nombre}")
-        regular = PoligonoRegular("Pentagono", "verde", 4, 5)
+        regular = crear_regular(Pentagono, medida=4, nombre="Pentagono", color="verde")
         print(f"Perimetro del pentagono: {regular.perimetro()}")
+       
