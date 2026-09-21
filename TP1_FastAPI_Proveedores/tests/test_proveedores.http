@@ -1,0 +1,110 @@
+@baseUrl = http://127.0.0.1:8000
+
+### ==========================================
+### MÓDULO: PROVEEDORES
+### ==========================================
+
+### 1. Crear Proveedor (Prueba: Body, Pydantic, status 201)
+POST {{baseUrl}}/proveedores/
+Content-Type: application/json
+
+{
+  "codigo": "PROV-01",
+  "razon_social": "Distribuidora SA",
+  "cuit": "20304050607",
+  "email": "contacto@distribuidora.com",
+  "telefono": "2610000000",
+  "activo": true
+}
+
+### 2. Crear Segundo Proveedor
+POST {{baseUrl}}/proveedores/
+Content-Type: application/json
+
+{
+  "codigo": "PROV-02",
+  "razon_social": "Insumos del Sur",
+  "cuit": "20111222333",
+  "email": "",
+  "telefono": "",
+  "activo": true
+}
+
+### 3. Crear Proveedor con Código Duplicado (Prueba: RN-02, error 409)
+POST {{baseUrl}}/proveedores/
+Content-Type: application/json
+
+{
+  "codigo": "PROV-01",
+  "razon_social": "Otra Empresa SA",
+  "cuit": "20999888777",
+  "email": "",
+  "telefono": "",
+  "activo": true
+}
+
+### 4. Crear Proveedor Inválido (Prueba: RN-01/RN-03, error 422)
+# Falla porque:
+# - codigo está vacío (min_length=1)
+# - razon_social tiene menos de 3 caracteres
+POST {{baseUrl}}/proveedores/
+Content-Type: application/json
+
+{
+  "codigo": "",
+  "razon_social": "AB",
+  "cuit": "20304050607",
+  "email": "",
+  "telefono": "",
+  "activo": true
+}
+
+### 5. Listar Proveedores (Prueba: Query Parameters, paginación)
+GET {{baseUrl}}/proveedores/?skip=0&limit=10
+
+### 6. Listar Solo Proveedores Activos (Prueba: filtro activo=true)
+GET {{baseUrl}}/proveedores/?activo=true
+
+### 7. Listar Solo Proveedores Inactivos (Prueba: filtro activo=false)
+GET {{baseUrl}}/proveedores/?activo=false
+
+### 8. Detalle de Proveedor Exitoso
+GET {{baseUrl}}/proveedores/1
+
+### 9. Detalle de Proveedor Inexistente (Prueba: RN-04, error 404)
+GET {{baseUrl}}/proveedores/999
+
+### 10. Actualizar Proveedor (Reemplazo Total)
+PUT {{baseUrl}}/proveedores/2
+Content-Type: application/json
+
+{
+  "codigo": "PROV-02",
+  "razon_social": "Insumos del Sur SRL",
+  "cuit": "20111222333",
+  "email": "ventas@insumosdelsur.com",
+  "telefono": "2610111222",
+  "activo": true
+}
+
+### 11. Actualizar Proveedor Inexistente (Prueba: error 404)
+PUT {{baseUrl}}/proveedores/999
+Content-Type: application/json
+
+{
+  "codigo": "PROV-99",
+  "razon_social": "No Existe SA",
+  "cuit": "20000000000",
+  "email": "",
+  "telefono": "",
+  "activo": true
+}
+
+### 12. Desactivar Proveedor (Borrado Lógico)
+PUT {{baseUrl}}/proveedores/1/desactivar
+
+### 13. Desactivar Proveedor Ya Desactivado (Prueba: RN-05, error 409)
+PUT {{baseUrl}}/proveedores/1/desactivar
+
+### 14. Desactivar Proveedor Inexistente (Prueba: error 404)
+PUT {{baseUrl}}/proveedores/999/desactivar
